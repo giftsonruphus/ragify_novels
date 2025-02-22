@@ -1,12 +1,13 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
-from ingest_documents import convert_pdf_to_text, ingest_to_faiss
+from app.ingest_documents import convert_pdf_to_text, ingest_to_faiss
 from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
-from langchain_huggingface.llms import HuggingFacePipeline
+from langchain_huggingface import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from huggingface_hub import snapshot_download
+from transformers import pipeline
 import os
 import faiss
 
@@ -14,13 +15,12 @@ app = FastAPI()
 
 # Define paths and model identifiers
 FAISS_INDEX_PATH = "./faiss_index"
-MODEL_CACHE_DIR = "/home/decoder/ai/models"
+MODEL_DIR = "/home/decoder/ai/models"
 model_id = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 task = "text-generation"
 pipeline_kwargs = {"max_new_tokens": 100}
 
-# Set environment variable for Hugging Face cache
-os.environ["TRANSFORMERS_CACHE"] = MODEL_CACHE_DIR
+snapshot_download(repo_id=model_id, local_dir=MODEL_DIR)
 
 # Load or initialize FAISS index
 if os.path.exists(FAISS_INDEX_PATH):
@@ -38,11 +38,8 @@ else:
     vector_db = FAISS(embedding_function, index, docstore, index_to_docstore_id)
 
 # Download and load the DeepSeek model
-llm = HuggingFacePipeline.from_model_id(
-    model_id=model_id,
-    task=task,
-    pipeline_kwargs=pipeline_kwargs
-)
+hf_pipeline = pipeline("text-generation", model=MODEL_DIR)
+llm = HuggingFacePipeline(pipeline=hf_pipeline)
 
 @app.post("/upload-pdf/")
 async def upload_pdf(
