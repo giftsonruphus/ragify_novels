@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 from langchain_community.vectorstores import FAISS
+from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.docstore.document import Document
 from sentence_transformers import SentenceTransformer
 import os
@@ -27,18 +28,25 @@ def ingest_to_faiss(txt_path, faiss_index_path):
 
     # Embedding model
     embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    embeddings = embedding_model.encode([doc.page_content for doc in documents])
 
     # Check if FAISS index exists
     if os.path.exists(faiss_index_path):
-        vector_db = FAISS.load_local(faiss_index_path)
-        vector_db.add_texts(documents)
+        # Load the existing FAISS index
+        vector_db = FAISS.load_local(faiss_index_path, embedding_model)
     else:
         # Create a new FAISS index
         dimension = embedding_model.get_sentence_embedding_dimension()
         index = faiss.IndexFlatL2(dimension)
-        vector_db = FAISS(embedding_model.encode, index)
-        vector_db.add_texts(documents)
+
+        # Initialize the docstore and index_to_docstore_id
+        docstore = InMemoryDocstore()
+        index_to_docstore_id = {}
+
+        # Create the FAISS vector store
+        vector_db = FAISS(embedding_model.encode, index, docstore, index_to_docstore_id)
+
+    # Add documents to the vector store
+    vector_db.add_documents(documents)
 
     # Save the FAISS index
     vector_db.save_local(faiss_index_path)
