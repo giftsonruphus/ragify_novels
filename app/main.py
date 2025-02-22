@@ -40,7 +40,7 @@ else:
     vector_db = FAISS(embedding_function, index, docstore, index_to_docstore_id)
 
 # Download and load the DeepSeek model
-hf_pipeline = pipeline("text-generation", model=MODEL_DIR)
+hf_pipeline = pipeline("text-generation", model=MODEL_DIR, **pipeline_kwargs)
 llm = HuggingFacePipeline(pipeline=hf_pipeline)
 
 @app.post("/upload-pdf/") 
@@ -88,6 +88,5 @@ async def query_rag(request: QueryRequest):
 
     # Generate answer using the DeepSeek model
     answer = llm(prompt)
-    only_answer = answer.split("Answer:", 1)[-1].strip()
 
-    return {"question": query, "context": context, "answer": only_answer}
+    return {"question": query, "context": context, "answer": answer}
