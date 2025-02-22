@@ -38,7 +38,6 @@ else:
     vector_db = FAISS(embedding_function, index, docstore, index_to_docstore_id)
 
 # Download and load the DeepSeek model
-model_path = snapshot_download(repo_id=repo_id, cache_dir=MODEL_CACHE_DIR)
 llm = HuggingFacePipeline.from_model_id(
     model_id=model_id,
     task=task,
