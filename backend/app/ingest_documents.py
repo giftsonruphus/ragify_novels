@@ -3,6 +3,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 from sentence_transformers import SentenceTransformer
 import os
+import faiss
 
 # Convert PDF to TXT with page range
 def convert_pdf_to_text(pdf_path, start_page, end_page):
@@ -16,7 +17,7 @@ def convert_pdf_to_text(pdf_path, start_page, end_page):
     return txt_path
 
 # Ingest text into FAISS
-def ingest_to_faiss(txt_path):
+def ingest_to_faiss(txt_path, faiss_index_path):
     with open(txt_path, 'r', encoding='utf-8') as f:
         text = f.read()
 
@@ -28,6 +29,16 @@ def ingest_to_faiss(txt_path):
     embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
     embeddings = embedding_model.encode([doc.page_content for doc in documents])
 
-    # Store in FAISS
-    vector_db = FAISS.from_embeddings(embeddings, documents)
-    vector_db.save_local("./faiss_index")
+    # Check if FAISS index exists
+    if os.path.exists(faiss_index_path):
+        vector_db = FAISS.load_local(faiss_index_path)
+        vector_db.add_texts(documents)
+    else:
+        # Create a new FAISS index
+        dimension = embedding_model.get_sentence_embedding_dimension()
+        index = faiss.IndexFlatL2(dimension)
+        vector_db = FAISS(embedding_model.encode, index)
+        vector_db.add_texts(documents)
+
+    # Save the FAISS index
+    vector_db.save_local(faiss_index_path)
