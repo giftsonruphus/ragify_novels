@@ -22,13 +22,15 @@ pipeline_kwargs = {"max_new_tokens": 100}
 
 snapshot_download(repo_id=model_id, local_dir=MODEL_DIR)
 
+# Initialize the embedding model
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+embedding_function = embedding_model.encode
+
 # Load or initialize FAISS index
 if os.path.exists(FAISS_INDEX_PATH):
-    vector_db = FAISS.load_local(FAISS_INDEX_PATH)
+    vector_db = FAISS.load_local(FAISS_INDEX_PATH, embeddings=embedding_function, allow_dangerous_deserialization=True)
 else:
     # Initialize an empty FAISS index
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    embedding_function = embedding_model.encode
     dimension = embedding_model.get_sentence_embedding_dimension()
     index = faiss.IndexFlatL2(dimension)
 
@@ -41,7 +43,7 @@ else:
 hf_pipeline = pipeline("text-generation", model=MODEL_DIR)
 llm = HuggingFacePipeline(pipeline=hf_pipeline)
 
-@app.post("/upload-pdf/")
+@app.post("/upload-pdf/") 
 async def upload_pdf(
     file: UploadFile = File(...),
     start_page: int = Form(...),
@@ -73,12 +75,19 @@ async def query_rag(request: QueryRequest):
 
     # Create prompt
     prompt_template = PromptTemplate(
-        template="Answer the question based on the context:\nContext:\n{context}\n\nQuestion: {question}\nAnswer:",
+        template=(
+          "You are an AI assistant with access to the following context:\n\n"
+          "{context}\n\n"
+          "Based on this information, please answer the following question:\n"
+          "Question: {question}\n"
+          "Answer:"
+      ),
         input_variables=["context", "question"]
     )
     prompt = prompt_template.format(context=context, question=query)
 
     # Generate answer using the DeepSeek model
     answer = llm(prompt)
+    only_answer = answer.split("Answer:", 1)[-1].strip()
 
-    return {"answer": answer}
+    return {"question": query, "context": context, "answer": only_answer}

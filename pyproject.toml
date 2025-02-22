@@ -16,7 +16,8 @@ dependencies = [
     "pymupdf (>=1.25.3,<2.0.0)",
     "faiss-cpu (>=1.10.0,<2.0.0)",
     "langchain-huggingface (>=0.1.2,<0.2.0)",
-    "python-multipart (>=0.0.20,<0.0.21)"
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "nltk (>=3.9.1,<4.0.0)"
 ]
 
 
